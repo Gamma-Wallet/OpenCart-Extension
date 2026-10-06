@@ -1,0 +1,45 @@
+{# The Gamma Wallet box: the reward QR code, the store-credit QR code with its countdown, or a note.
+   Asks this shop (never Gamma) every 5 seconds through gamma_wallet.js. #}
+<link rel="stylesheet" href="{{ css }}">
+<script>window.gammaWalletText = {{ texts }};</script>
+{% if kind == 'reward' %}
+<section class="gamma-wallet-box" data-kind="reward" data-status-url="{{ status_url }}" data-poll="{{ claimed ? '0' : '1' }}">
+  <div class="gw-card{{ claimed ? ' gw-is-done' : '' }}">
+    <div class="gw-qr-col">
+      <div class="gamma-wallet-qr gw-qr-tile"><img src="{{ qr }}" width="200" height="200" alt="QR"></div>
+      <div class="gw-check" aria-hidden="true">&#10003;</div>
+    </div>
+    <div class="gw-body">
+      <p class="gamma-wallet-logo"><img src="{{ logo }}" alt="Gamma Wallet" height="22"></p>
+      <h2 class="gamma-wallet-title">{{ text_reward_title }}</h2>
+      <p class="gw-lead gw-when-waiting">{{ text_reward_lead }}</p>
+      <ol class="gw-steps gw-when-waiting"><li>{{ text_step_open }}</li><li>{{ text_step_scan }}</li><li>{{ text_step_added }}</li></ol>
+      <a class="gamma-wallet-open gw-button gw-when-waiting" href="{{ link }}">{{ text_open }}</a>
+      <p class="gamma-wallet-done gw-done"{{ claimed ? '' : ' hidden' }}>{{ text_claimed }}</p>
+    </div>
+  </div>
+</section>
+{% elseif kind == 'credit' %}
+<section class="gamma-wallet-box gamma-wallet-credit" data-kind="credit" data-status-url="{{ status_url }}" data-new-code-url="{{ new_code_url }}" data-seconds-left="{{ seconds }}" data-poll="1">
+  <div class="gw-card">
+    <div class="gw-qr-col">
+      <div class="gamma-wallet-qr gw-qr-tile"><img class="gamma-wallet-qr-img" src="{{ qr }}" width="220" height="220" alt="QR"{{ qr and seconds > 0 ? '' : ' hidden' }}></div>
+      <div class="gw-timer" aria-hidden="true"><span class="gw-timer-bar"></span></div>
+      <p class="gamma-wallet-countdown gw-countdown" aria-live="polite"></p>
+      <div class="gw-check" aria-hidden="true">&#10003;</div>
+    </div>
+    <div class="gw-body">
+      <p class="gamma-wallet-logo"><img src="{{ logo }}" alt="Gamma Wallet" height="22"></p>
+      <h2 class="gamma-wallet-title">{{ text_credit_title }}</h2>
+      <p class="gw-lead">{{ text_credit_lead }}</p>
+      <ol class="gw-steps gw-when-waiting"><li>{{ text_step_open }}</li><li>{{ text_step_scan_time }}</li><li>{{ text_step_confirm }}</li></ol>
+      <a class="gamma-wallet-open gw-button gw-when-waiting" href="{{ link }}">{{ text_open }}</a>
+      <button type="button" class="gamma-wallet-new-code gw-button" hidden>{{ text_new_code }}</button>
+      <p class="gamma-wallet-done gw-done" hidden></p>
+    </div>
+  </div>
+</section>
+{% else %}
+<p class="gamma-wallet-note">{{ note }}</p>
+{% endif %}
+<script src="{{ js }}"></script>

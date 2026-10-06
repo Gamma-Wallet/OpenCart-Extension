@@ -1,0 +1,239 @@
+/*
+ * Gamma Wallet for WooCommerce — the reward and store-credit boxes.
+ * Every rule is scoped to .gamma-wallet-box, and the button sets its own look, so shop themes
+ * do not reshape it. Brand accent: Gamma sky blue #4fb7e8.
+ */
+.gamma-wallet-box {
+	--gw-accent: #4fb7e8;
+	--gw-accent-dark: #1b7fb3;
+	--gw-ink: #14222e;
+	--gw-muted: #5a6b7b;
+	--gw-line: rgba(20, 34, 46, 0.1);
+	--gw-soft: #f2f9fd;
+	margin: 1.75em 0 2.25em;
+	color: var(--gw-ink);
+}
+.gamma-wallet-box *,
+.gamma-wallet-box *::before,
+.gamma-wallet-box *::after {
+	box-sizing: border-box;
+}
+
+/* The card: QR code on the left, the explanation on the right; stacked on a phone. */
+.gamma-wallet-box .gw-card {
+	display: grid;
+	grid-template-columns: auto 1fr;
+	gap: 28px;
+	align-items: center;
+	padding: 24px 28px;
+	background: linear-gradient(135deg, var(--gw-soft) 0%, #ffffff 60%);
+	border: 1px solid var(--gw-line);
+	border-radius: 16px;
+	box-shadow: 0 1px 2px rgba(20, 34, 46, 0.04), 0 8px 24px rgba(20, 34, 46, 0.06);
+}
+@media (max-width: 640px) {
+	.gamma-wallet-box .gw-card {
+		grid-template-columns: 1fr;
+		gap: 18px;
+		padding: 20px;
+		text-align: center;
+	}
+}
+
+/* The QR code sits on its own white tile, so it scans well on any background. */
+.gamma-wallet-box .gw-qr-col {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 10px;
+}
+.gamma-wallet-box .gw-qr-tile {
+	margin: 0;
+	padding: 12px;
+	background: #fff;
+	border: 1px solid var(--gw-line);
+	border-radius: 14px;
+	line-height: 0;
+}
+.gamma-wallet-box .gw-qr-tile img {
+	display: block;
+	width: 184px;
+	height: 184px;
+	max-width: none;
+	image-rendering: pixelated;
+}
+.gamma-wallet-box .gw-qr-tile img[hidden] {
+	display: none;
+}
+
+/* Text. */
+.gamma-wallet-box .gamma-wallet-logo {
+	margin: 0 0 10px;
+	line-height: 0;
+}
+.gamma-wallet-box .gamma-wallet-logo img {
+	display: inline-block;
+	height: 22px;
+	width: auto;
+}
+.gamma-wallet-box .gamma-wallet-title {
+	margin: 0 0 6px;
+	font-size: 1.35em;
+	line-height: 1.25;
+	font-weight: 700;
+	color: var(--gw-ink);
+}
+.gamma-wallet-box .gw-lead {
+	margin: 0 0 14px;
+	color: var(--gw-muted);
+	line-height: 1.5;
+}
+.gamma-wallet-box .gw-lead strong {
+	color: var(--gw-ink);
+}
+
+/* Three numbered steps. */
+.gamma-wallet-box .gw-steps {
+	list-style: none;
+	counter-reset: gw-step;
+	margin: 0 0 18px;
+	padding: 0;
+}
+.gamma-wallet-box .gw-steps li {
+	counter-increment: gw-step;
+	position: relative;
+	margin: 0 0 8px;
+	padding-left: 34px;
+	line-height: 24px;
+	text-align: left;
+}
+.gamma-wallet-box .gw-steps li::before {
+	content: counter(gw-step);
+	position: absolute;
+	left: 0;
+	top: 0;
+	width: 24px;
+	height: 24px;
+	border-radius: 50%;
+	background: var(--gw-accent);
+	color: #06202e;
+	font-size: 0.8em;
+	font-weight: 700;
+	line-height: 24px;
+	text-align: center;
+}
+@media (max-width: 640px) {
+	.gamma-wallet-box .gw-steps {
+		display: inline-block;
+	}
+}
+
+/* The button: a sky-blue pill, whatever the theme does to links and buttons. */
+.gamma-wallet-box .gw-button,
+.gamma-wallet-box .gw-button:visited {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	min-height: 44px;
+	padding: 10px 22px;
+	border: 0;
+	border-radius: 999px;
+	background: var(--gw-accent);
+	color: #06202e;
+	font: inherit;
+	font-weight: 600;
+	line-height: 1.2;
+	text-decoration: none;
+	cursor: pointer;
+	box-shadow: none;
+	transition: background-color 0.15s ease;
+}
+.gamma-wallet-box .gw-button:hover,
+.gamma-wallet-box .gw-button:focus-visible {
+	background: #6cc3ee;
+	color: #06202e;
+	text-decoration: none;
+}
+.gamma-wallet-box .gw-button:focus-visible {
+	outline: 2px solid var(--gw-accent-dark);
+	outline-offset: 2px;
+}
+.gamma-wallet-box .gw-button[hidden] {
+	display: none;
+}
+/* On a computer the QR code is the way in; the button is for phones, so it is quieter there. */
+@media (min-width: 641px) {
+	.gamma-wallet-box a.gw-button {
+		background: transparent;
+		color: var(--gw-accent-dark);
+		padding-left: 0;
+		padding-right: 0;
+		min-height: 0;
+	}
+	.gamma-wallet-box a.gw-button:hover {
+		background: transparent;
+		text-decoration: underline;
+	}
+}
+
+/* The 60-second timer under the store-credit code. */
+.gamma-wallet-box .gw-timer {
+	width: 210px;
+	height: 6px;
+	border-radius: 999px;
+	background: var(--gw-line);
+	overflow: hidden;
+}
+.gamma-wallet-box .gw-timer-bar {
+	display: block;
+	height: 100%;
+	width: 100%;
+	background: var(--gw-accent);
+	border-radius: inherit;
+	transition: width 1s linear, background-color 0.3s ease;
+}
+.gamma-wallet-box .gw-timer.gw-low .gw-timer-bar {
+	background: #e8a33d;
+}
+.gamma-wallet-box .gw-countdown {
+	margin: 0;
+	font-weight: 600;
+	font-variant-numeric: tabular-nums;
+	color: var(--gw-muted);
+	min-height: 1.4em;
+}
+
+/* Done: a check mark instead of the code. */
+.gamma-wallet-box .gw-check {
+	display: none;
+	width: 96px;
+	height: 96px;
+	border-radius: 50%;
+	background: #e6f6ec;
+	color: #1a7f37;
+	font-size: 52px;
+	line-height: 96px;
+	text-align: center;
+}
+.gamma-wallet-box .gw-is-done .gw-check {
+	display: block;
+}
+.gamma-wallet-box .gw-is-done .gw-qr-tile,
+.gamma-wallet-box .gw-is-done .gw-timer,
+.gamma-wallet-box .gw-is-done .gw-countdown,
+.gamma-wallet-box .gw-is-done .gw-when-waiting {
+	display: none;
+}
+.gamma-wallet-box .gw-done {
+	margin: 4px 0 0;
+	font-weight: 600;
+	color: #1a7f37;
+}
+.gamma-wallet-box .gw-done[hidden] {
+	display: none;
+}
+
+/* A one-line note outside the box. */
+.gamma-wallet-note {
+	margin: 1em 0;
+}

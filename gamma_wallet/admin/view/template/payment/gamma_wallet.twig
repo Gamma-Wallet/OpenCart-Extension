@@ -1,0 +1,130 @@
+{{ header }}{{ column_left }}
+<div id="content">
+  <div class="page-header">
+    <div class="container-fluid">
+      <div class="float-end">
+        <button type="submit" form="form-payment" data-bs-toggle="tooltip" title="{{ button_save }}" class="btn btn-primary"><i class="fa-solid fa-save"></i></button>
+        <a href="{{ back }}" data-bs-toggle="tooltip" title="{{ button_back }}" class="btn btn-light"><i class="fa-solid fa-reply"></i></a></div>
+      <h1>{{ heading_title }}</h1>
+      <ol class="breadcrumb">
+        {% for breadcrumb in breadcrumbs %}<li class="breadcrumb-item"><a href="{{ breadcrumb.href }}">{{ breadcrumb.text }}</a></li>{% endfor %}
+      </ol>
+    </div>
+  </div>
+  <div class="container-fluid">
+    <div class="card" id="gamma-wallet-settings">
+      <div class="card-header"><i class="fa-solid fa-pencil"></i> {{ text_edit }}</div>
+      <div class="card-body">
+        <p>{{ text_intro }}</p>
+        <form id="form-payment" action="{{ save }}" method="post" data-oc-toggle="ajax" autocomplete="off">
+          <fieldset>
+            <legend>{{ text_connection }}</legend>
+            <div class="row mb-3">
+              <label for="input-token" class="col-sm-2 col-form-label">{{ entry_token }}</label>
+              <div class="col-sm-10">
+                <input type="password" name="payment_gamma_wallet_token" value="" id="input-token" class="form-control" spellcheck="false" placeholder="{{ has_token ? masked : 'GWINT_…' }}"/>
+                <div class="form-text">{{ help_token }} <a href="https://business.gamma-wallet.com" target="_blank" rel="noopener noreferrer">Gamma Business</a>{% if has_token %}<br>{{ text_token_saved }}{% endif %}</div>
+                {% if has_token %}<div class="form-check mt-2"><input type="checkbox" name="remove_token" value="1" id="input-remove-token" class="form-check-input"/> <label for="input-remove-token" class="form-check-label">{{ entry_remove_token }}</label></div>{% endif %}
+              </div>
+            </div>
+            <div class="row mb-3">
+              <label class="col-sm-2 col-form-label">{{ entry_status_connection }}</label>
+              <div class="col-sm-10 pt-2">
+                {% if not has_token %}
+                  <span class="text-danger">{{ text_not_connected }}</span>
+                {% elseif not connection %}
+                  {{ text_not_checked }}
+                {% elseif connection.error and not connection.businessName %}
+                  <span class="text-danger">{{ connection.error }}</span>
+                {% else %}
+                  {% if connection.error %}<span class="text-warning">{{ connection.error }}</span><br>{% endif %}
+                  <span class="text-success">&#10003; {{ text_connected }}</span><br>
+                  {{ text_business }}: <strong>{{ connection.businessName }}</strong> · {{ text_currency }}: <strong>{{ connection.currencyCode }}</strong><br>
+                  {{ text_token }} <code>{{ masked }}</code>, {{ text_days_left|format(connection.token.daysLeft) }}
+                  {% if not connection.canClaim %}<br><span class="text-danger">{{ error_no_reward_service }}</span>{% endif %}
+                  {% if not currency_ok %}<br><span class="text-danger">{{ error_currency|format(shop_currency, connection.currencyCode) }}</span>{% endif %}
+                {% endif %}
+                {% if checked_on %}<br><span class="text-muted">{{ text_checked }} {{ checked_on }}</span>{% endif %}
+                {% if has_token %} <a href="{{ check }}" class="btn btn-light btn-sm ms-2"><i class="fa-solid fa-rotate"></i> {{ button_check }}</a>{% endif %}
+              </div>
+            </div>
+          </fieldset>
+          <fieldset>
+            <legend>{{ text_rewards }}</legend>
+            <div class="row mb-3">
+              <div class="col-sm-10 offset-sm-2">
+                <div class="form-check form-switch">
+                  <input type="hidden" name="payment_gamma_wallet_rewards" value="0"/>
+                  <input type="checkbox" name="payment_gamma_wallet_rewards" value="1" id="input-rewards" class="form-check-input"{% if payment_gamma_wallet_rewards %} checked{% endif %}/>
+                  <label for="input-rewards" class="form-check-label">{{ entry_rewards }}</label>
+                </div>
+              </div>
+            </div>
+            <div class="row mb-3">
+              <label class="col-sm-2 col-form-label">{{ entry_methods }}</label>
+              <div class="col-sm-10 pt-2">
+                {% for method in methods %}
+                  <div class="form-check">
+                    <input type="checkbox" name="reward_methods[]" value="{{ method.code }}" id="input-method-{{ method.code }}" class="form-check-input"{% if method.ticked %} checked{% endif %}/>
+                    <label for="input-method-{{ method.code }}" class="form-check-label"><strong>{{ method.title }}</strong> <span class="text-muted">— {{ method.pay_later ? text_paid_later : text_paid_at_checkout }}</span></label>
+                  </div>
+                {% endfor %}
+                <div class="form-text">{{ help_methods }}</div>
+              </div>
+            </div>
+            <div class="row mb-3">
+              <label for="input-paid-statuses" class="col-sm-2 col-form-label">{{ entry_paid_statuses }}</label>
+              <div class="col-sm-10">
+                <select name="payment_gamma_wallet_paid_statuses[]" id="input-paid-statuses" class="form-select" multiple size="6">
+                  {% for order_status in order_statuses %}<option value="{{ order_status.order_status_id }}"{% if order_status.order_status_id in paid_statuses %} selected{% endif %}>{{ order_status.name }}</option>{% endfor %}
+                </select>
+                <div class="form-text">{{ help_paid_statuses }}</div>
+              </div>
+            </div>
+            <div class="row mb-3">
+              <div class="col-sm-10 offset-sm-2">
+                <div class="form-check form-switch">
+                  <input type="hidden" name="payment_gamma_wallet_reward_email" value="0"/>
+                  <input type="checkbox" name="payment_gamma_wallet_reward_email" value="1" id="input-reward-email" class="form-check-input"{% if payment_gamma_wallet_reward_email %} checked{% endif %}/>
+                  <label for="input-reward-email" class="form-check-label">{{ entry_reward_email }}</label>
+                </div>
+              </div>
+            </div>
+          </fieldset>
+          <fieldset>
+            <legend>{{ text_credits }}</legend>
+            <div class="row mb-3">
+              <div class="col-sm-10 offset-sm-2">
+                <div class="form-check form-switch">
+                  <input type="hidden" name="payment_gamma_wallet_status" value="0"/>
+                  <input type="checkbox" name="payment_gamma_wallet_status" value="1" id="input-status" class="form-check-input"{% if payment_gamma_wallet_status %} checked{% endif %}/>
+                  <label for="input-status" class="form-check-label">{{ entry_credits }}</label>
+                </div>
+                <div class="form-text">{{ help_credits }}</div>
+              </div>
+            </div>
+            <div class="row mb-3">
+              <label for="input-order-status" class="col-sm-2 col-form-label">{{ entry_order_status }}</label>
+              <div class="col-sm-4">
+                <select name="payment_gamma_wallet_order_status_id" id="input-order-status" class="form-select">
+                  {% for order_status in order_statuses %}<option value="{{ order_status.order_status_id }}"{% if order_status.order_status_id == payment_gamma_wallet_order_status_id %} selected{% endif %}>{{ order_status.name }}</option>{% endfor %}
+                </select>
+              </div>
+              <label for="input-settled-status" class="col-sm-2 col-form-label">{{ entry_settled_status }}</label>
+              <div class="col-sm-4">
+                <select name="payment_gamma_wallet_settled_status_id" id="input-settled-status" class="form-select">
+                  {% for order_status in order_statuses %}<option value="{{ order_status.order_status_id }}"{% if order_status.order_status_id == payment_gamma_wallet_settled_status_id %} selected{% endif %}>{{ order_status.name }}</option>{% endfor %}
+                </select>
+              </div>
+            </div>
+            <div class="row mb-3">
+              <label for="input-sort-order" class="col-sm-2 col-form-label">{{ entry_sort_order }}</label>
+              <div class="col-sm-2"><input type="text" name="payment_gamma_wallet_sort_order" value="{{ payment_gamma_wallet_sort_order }}" id="input-sort-order" class="form-control"/></div>
+            </div>
+          </fieldset>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{{ footer }}
