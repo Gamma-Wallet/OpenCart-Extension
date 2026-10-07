@@ -1,0 +1,17 @@
+Gamma Wallet for OpenCart — installation (OpenCart 4.0.2.0 or newer)
+
+1. Keep the file name gamma_wallet.ocmod.zip as it is.
+2. Admin → Extensions → Installer → Upload → choose the zip → click the green Install button next to "Gamma Wallet".
+3. Admin → Extensions → Extensions → filter "Payments" → green "+" next to "Gamma Wallet".
+4. Click the blue pencil to open the settings.
+5. In Gamma Business (https://business.gamma-wallet.com) → Integrations, create an integration token
+   (it starts with GWINT_ and is shown only once). Paste it in "Integration token" and click Save.
+   The status should show "Connected".
+6. Choose which payment methods earn a reward and which order statuses mean "paid",
+   and turn "Use Store Credits with Gamma" on or off.
+
+Updating: upload and install the new zip in Extensions → Installer, then uninstall and install
+"Gamma Wallet" again in Extensions → Payments, and paste your token once more.
+
+Full guide for shop owners: https://github.com/Gamma-Wallet/OpenCart-Extension#readme
+Support: developer@gamma-wallet.com
