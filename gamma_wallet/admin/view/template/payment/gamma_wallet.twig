@@ -35,17 +35,18 @@
                 {% elseif not connection %}
                   {{ text_not_checked }}
                 {% elseif connection.error and not connection.businessName %}
-                  <span class="text-danger">{{ connection.error }}</span>
+                  <span class="text-danger">{{ connection.error|e }}</span>
                 {% else %}
-                  {% if connection.error %}<span class="text-warning">{{ connection.error }}</span><br>{% endif %}
+                  {% if connection.error %}<span class="text-warning">{{ connection.error|e }}</span><br>{% endif %}
                   <span class="text-success">&#10003; {{ text_connected }}</span><br>
-                  {{ text_business }}: <strong>{{ connection.businessName }}</strong> · {{ text_currency }}: <strong>{{ connection.currencyCode }}</strong><br>
-                  {{ text_token }} <code>{{ masked }}</code>, {{ text_days_left|format(connection.token.daysLeft) }}
+                  {{ text_business }}: <strong>{{ connection.businessName|e }}</strong> · {{ text_currency }}: <strong>{{ connection.currencyCode|e }}</strong><br>
+                  {{ text_token }} <code>{{ masked|e }}</code>, {{ text_days_left|format(connection.token.daysLeft)|e }}
                   {% if not connection.canClaim %}<br><span class="text-danger">{{ error_no_reward_service }}</span>{% endif %}
-                  {% if not currency_ok %}<br><span class="text-danger">{{ error_currency|format(shop_currency, connection.currencyCode) }}</span>{% endif %}
+                  {% if not currency_ok %}<br><span class="text-danger">{{ error_currency|format(shop_currency, connection.currencyCode)|e }}</span>{% endif %}
                 {% endif %}
                 {% if checked_on %}<br><span class="text-muted">{{ text_checked }} {{ checked_on }}</span>{% endif %}
                 {% if has_token %} <a href="{{ check }}" class="btn btn-light btn-sm ms-2"><i class="fa-solid fa-rotate"></i> {{ button_check }}</a>{% endif %}
+                <div class="form-text mt-2">{{ help_data_sent|e }}</div>
               </div>
             </div>
           </fieldset>

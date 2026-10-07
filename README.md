@@ -32,7 +32,7 @@ This guide is for shop owners. No coding is needed. If you want to connect your 
 | | |
 |---|---|
 | A Gamma Business account with a **Reward** service active | [Register](https://business.gamma-wallet.com) and start on the free tier, then activate a Reward service. The extension works only with a Reward service: while another kind of service is active (a membership or a discount card, for example), customers get no reward QR code and store credits are not offered at checkout. |
-| OpenCart | Version **4** (tested with 4.1.0.4 and its default theme). OpenCart 3 works differently and is not supported by this extension. |
+| OpenCart | Version **4.0.2.0 or newer** (tested with 4.1.0.4 and its default theme). OpenCart 3 and the first 4.0 releases (4.0.0.0 to 4.0.1.x) work differently and are not supported. |
 | The same currency | Your shop must sell in the same currency as your Gamma business (for example EUR in both). |
 | Email | Your shop must be able to send email (*System → Settings → your store → Mail*), so customers receive their reward. |
 
@@ -43,6 +43,10 @@ This guide is for shop owners. No coding is needed. If you want to connect your 
 3. In the list below, click the green **Install** button next to *Gamma Wallet*.
 4. Go to **Extensions → Extensions**, choose **Payments** in the filter, and click the green **+** next to *Gamma Wallet*.
 5. Click the blue **pencil** next to *Gamma Wallet* to open its settings.
+
+Only orders placed **after** the extension is installed earn rewards; older orders never do.
+
+**Updating to a new version:** upload the new zip in **Extensions → Installer** and install it, then in **Extensions → Extensions → Payments** uninstall and install *Gamma Wallet* again so its new parts are registered, and paste your integration token once more. Reinstalling never gives an order a second reward.
 
 ## 3. Create your integration token in Gamma Business
 
@@ -104,6 +108,8 @@ Good to know:
 - Store credits always cover the **whole** order. A customer who doesn't hold enough credits at your shop can't complete it with their credits and chooses another payment method instead.
 - The option is shown only when your shop is connected, your business has a Reward service active, the currency matches and the order total is above zero.
 - An order settled with store credits doesn't earn a new reward.
+- If the customer confirms in the app and closes the page straight away, the order is still settled: the extension checks waiting orders with Gamma while customers browse your shop (every 2 minutes at most), and OpenCart's hourly cron job (**System → Maintenance → Cron Jobs**) does it too.
+- If an order is paid with credits after it was cancelled, its status is not changed: a note in its history tells you, because the customer has used their credits.
 
 ## 7. What your customers see
 
@@ -162,7 +168,15 @@ Do both steps together. **The old token stops working the moment you create the 
 No. Customers pay you exactly as before, through the payment methods you already use. Gamma only records the reward contract for the order. A customer who uses store credits is using value you promised earlier, not paying Gamma.
 
 **What does the extension send to Gamma?**
-For each order that earns a reward or uses store credits: an order reference (such as *OC-3f9a1c-42*: your order number with a short tag for your shop), the total, the currency and the order date. No names, addresses, email addresses or products.
+Every request carries your integration token and the extension version. For each order that earns a reward or uses store credits: an order reference (such as *OC-3f9a1c-42*: your order number with a short tag for your shop), the total, the currency, the order date, and the name of the platform (OpenCart). About once an hour it checks the connection. No names, addresses, email addresses or products.
+
+The reward QR code image on the order pages, in the emails and on the admin order page is loaded from `integration.gamma-wallet.com`, so the customer's browser or email app contacts that server when it shows it. Mention this in your shop's privacy policy.
+
+**I use an anti-fraud extension.**
+Then the reward waits for the status the order really gets after the fraud check, and arrives by email. An order the check holds back earns nothing until you move it to a paid status yourself.
+
+**A card payment is confirmed a while after the order (the order starts as *Pending*).**
+The reward is created when the payment is confirmed and sent by email, because the order email has already gone out by then.
 
 **My customer doesn't have the Gamma Wallet app yet.**
 They install the free Gamma Wallet app, sign up, and scan the code from the success page or the email.
@@ -174,7 +188,7 @@ No. Each order's reward can be collected once, by the first person who scans it.
 The extension doesn't take a reward back. If the order already had a reward, its QR code still works until the customer collects it, and a collected reward stays in their wallet. For cash on delivery and bank transfer, you avoid this by moving an order to a paid status only once you have the money.
 
 **What happens if I uninstall the extension?**
-New rewards stop and the store credits option disappears. Rewards already given stay in your customers' wallets. Uninstalling also removes its settings, including the saved token, and the Gamma details it kept for each order. The status *Awaiting Gamma store credits* stays, because past orders use it.
+New rewards stop and the store credits option disappears. Rewards already given stay in your customers' wallets. Uninstalling also removes its settings, including the saved token, its cron job and the Gamma details it kept for each order. The status *Awaiting Gamma store credits* stays, because past orders use it, and so does a short installation code, so that reinstalling never gives an order a second reward.
 
 ## 11. When something is wrong
 
@@ -184,8 +198,9 @@ New rewards stop and the store credits option disappears. Rewards already given 
 | *… works only with a Reward service* | Your active service in Gamma is not a Reward service. Activate a Reward service in Gamma Business. The extension checks again every hour; click **Check again** to see the change at once. |
 | *Your shop sells in … but your Gamma business uses …* | Your shop's default currency (*System → Settings → your store → Local*) must be the same as your Gamma business currency. |
 | *Use Store Credits with Gamma* is missing at checkout | Check that it is turned on in the settings, that **Status** shows *Connected* with no red line about the Reward service, that the currencies match and that the total is above zero. |
-| An order has no reward | Check that your business has a Reward service active, that the payment method is ticked, that **Rewards** is on, and that the order is in one of the paid statuses. The order's Gamma Wallet box gives the reason. |
-| An error in the order's Gamma Wallet box | Fix the cause it names (usually the token), then click **Send the reward QR code to the customer**: this creates the reward and emails it. |
+| An order has no reward | Check that your business has a Reward service active, that the payment method is ticked, that **Rewards** is on, that the order is in one of the paid statuses, and that it was placed after the extension was installed. The order's Gamma Wallet box gives the reason. |
+| An error in the order's Gamma Wallet box | Fix the cause it names (usually the token), then click **Send the reward QR code to the customer**: this creates the reward and emails it, also after the automatic tries have run out. |
+| An order paid with store credits still waits | It is settled as soon as someone browses your shop or the hourly cron job runs. Check that OpenCart's cron runs (**System → Maintenance → Cron Jobs**). |
 | *Gamma could not be reached* | Your hosting must allow outgoing connections to `https://integration.gamma-wallet.com`. Ask your hosting provider if this message stays. |
 | *Too many requests to Gamma* | Wait a minute and try again. |
 | The reward email didn't arrive | Ask the customer to check their spam folder, then send it again from the order. If none of your shop's emails arrive, the problem is your shop's mail settings, not the extension. |

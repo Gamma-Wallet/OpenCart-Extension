@@ -1,4 +1,5 @@
 <?php
+// SPDX-License-Identifier: GPL-3.0-or-later
 // Gamma Wallet for OpenCart — the shop's texts (English).
 $_['heading_title']          = 'Use Store Credits with Gamma';
 $_['text_option']            = 'Use Store Credits with Gamma';
@@ -23,6 +24,9 @@ $_['text_settled']           = 'Your order is settled with your store credits th
 $_['text_note_pay_later']    = 'This order earns a Gamma Wallet reward. Once your payment is received, we will email you a QR code to collect it.';
 $_['text_note_later']        = 'As soon as your payment is confirmed, you will receive a QR code by email to collect your reward with Gamma Wallet.';
 $_['text_settled_comment']   = "Settled with the customer's store credits through Gamma Wallet (request %s).";
+$_['text_settled_too_late']  = 'Gamma Wallet: the customer settled this order with their store credits (request %s), but the order was no longer waiting for them, so its status was not changed. Check it.';
+$_['text_no_longer_waiting'] = 'This order is no longer waiting for store credits.';
+$_['text_qr_alt']            = 'QR code';
 
 $_['text_mail_subject']      = 'Your reward from %s (order %s)';
 $_['text_mail_title']        = 'Your reward is ready';
@@ -36,3 +40,10 @@ $_['js_expired']             = 'This code has expired.';
 $_['js_settled']             = 'Done! Your order is settled with your store credits.';
 $_['js_claimed']             = 'Reward collected. Thank you!';
 $_['js_unavailable']         = 'Gamma cannot be reached right now. Please try again in a moment.';
+
+$_['error_api_0388']         = 'Gamma does not recognise this token. Copy it again from Gamma Business → Integrations.';
+$_['error_api_0389']         = 'This token was disabled or replaced. Create a new one in Gamma Business → Integrations.';
+$_['error_api_0390']         = 'This token has expired. Create a new one in Gamma Business → Integrations.';
+$_['error_api_0393']         = 'The business this token belongs to is not available in Gamma.';
+$_['error_api_unreachable']  = 'Gamma could not be reached. Check that this server can make outgoing HTTPS connections.';
+$_['error_api_busy']         = 'Too many requests to Gamma. Try again in a minute.';

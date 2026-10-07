@@ -1,4 +1,5 @@
 <?php
+// SPDX-License-Identifier: GPL-3.0-or-later
 // Gamma Wallet for OpenCart — the admin's texts (English).
 $_['heading_title']             = 'Gamma Wallet';
 $_['text_extension']            = 'Extensions';
@@ -58,3 +59,21 @@ $_['text_box_sent']             = 'The reward QR code was emailed to the custome
 $_['text_box_failed']           = 'The reward QR code could not be sent: the order is not eligible for a reward yet, or Gamma could not be reached.';
 
 $_['error_permission']          = 'Warning: You do not have permission to modify Gamma Wallet!';
+$_['error_statuses']            = 'Choose the status while waiting for the credits and the status once settled.';
+$_['text_awaiting_status']      = 'Awaiting Gamma store credits';
+$_['text_card_title']           = 'Gamma Wallet';
+$_['help_data_sent']            = 'What is sent to Gamma: every request carries your integration token and the extension version. For each order that earns a reward or uses store credits: an order reference (your order number with a short tag for your shop), the total, the currency, the order date and the platform name (OpenCart). About once an hour the connection is checked. No names, addresses, email addresses or products. The reward QR code image on the order pages and in the emails is loaded from integration.gamma-wallet.com, so the customer\'s browser or email app contacts that server when it shows it.';
+
+$_['text_mail_subject']      = 'Your reward from %s (order %s)';
+$_['text_mail_title']        = 'Your reward is ready';
+$_['text_mail_hello']        = 'Hello %s,';
+$_['text_mail_body']         = 'Thank you, we have received your payment. Your order %s earned a reward: scan the code below with the Gamma Wallet app to add it to your wallet.';
+$_['text_open']              = 'On your phone? Open in Gamma Wallet';
+$_['text_qr_alt']            = 'Reward QR code';
+
+$_['error_api_0388']         = 'Gamma does not recognise this token. Copy it again from Gamma Business → Integrations.';
+$_['error_api_0389']         = 'This token was disabled or replaced. Create a new one in Gamma Business → Integrations.';
+$_['error_api_0390']         = 'This token has expired. Create a new one in Gamma Business → Integrations.';
+$_['error_api_0393']         = 'The business this token belongs to is not available in Gamma.';
+$_['error_api_unreachable']  = 'Gamma could not be reached. Check that this server can make outgoing HTTPS connections.';
+$_['error_api_busy']         = 'Too many requests to Gamma. Try again in a minute.';

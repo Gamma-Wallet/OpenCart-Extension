@@ -1,11 +1,11 @@
 {# The Gamma Wallet box on the order page, above the history. #}
 <div class="card mb-3" id="gamma-wallet-order">
-  <div class="card-header"><img src="{{ logo }}" alt="" width="18" height="18" style="vertical-align:-3px;margin-right:6px">Gamma Wallet</div>
+  <div class="card-header"><img src="{{ logo|e('html_attr') }}" alt="" width="18" height="18" style="vertical-align:-3px;margin-right:6px">{{ text_card_title|e }}</div>
   <div class="card-body">
-    {% if flash == 'sent' %}<div class="alert alert-success">{{ text_flash_sent }}</div>{% endif %}
-    {% if flash == 'failed' %}<div class="alert alert-danger">{{ text_flash_failed }}</div>{% endif %}
-    {% for line in lines %}<p class="mb-1">{{ line }}</p>{% endfor %}
-    {% if qr %}<p class="mt-2 mb-2"><img src="{{ qr }}" width="120" height="120" alt=""></p>{% endif %}
-    {% if resend %}<a href="{{ resend }}" class="btn btn-light btn-sm"><i class="fa-solid fa-envelope"></i> {{ text_resend }}</a>{% endif %}
+    {% if flash == 'sent' %}<div class="alert alert-success">{{ text_flash_sent|e }}</div>{% endif %}
+    {% if flash == 'failed' %}<div class="alert alert-danger">{{ text_flash_failed|e }}</div>{% endif %}
+    {% for line in lines %}<p class="mb-1">{{ line|e }}</p>{% endfor %}
+    {% if qr %}<p class="mt-2 mb-2"><img src="{{ qr|e('html_attr') }}" width="120" height="120" alt=""></p>{% endif %}
+    {% if resend %}<a href="{{ resend|e('html_attr') }}" class="btn btn-light btn-sm"><i class="fa-solid fa-envelope"></i> {{ text_resend|e }}</a>{% endif %}
   </div>
 </div>

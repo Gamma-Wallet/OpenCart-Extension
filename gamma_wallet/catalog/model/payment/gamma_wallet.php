@@ -1,30 +1,38 @@
 <?php
+// SPDX-License-Identifier: GPL-3.0-or-later
 namespace Opencart\Catalog\Model\Extension\GammaWallet\Payment;
 
 require_once DIR_EXTENSION . 'gamma_wallet/system/library/gamma_wallet.php';
 
 /**
  * Gamma Wallet for OpenCart — the shop side: "Use Store Credits with Gamma" as a payment method,
- * rewards for paid orders, and what Gamma said about each order (table PREFIX_gamma_wallet_order).
+ * rewards for paid orders, and settling store-credit orders. The per-order data and the reward logic
+ * shared with the admin live in system/library/gamma_wallet.php.
  *
  * Can be called from $this->load->model('extension/gamma_wallet/payment/gamma_wallet');
  */
 class GammaWallet extends \Opencart\System\Engine\Model {
-	/** No more automatic attempts after this many failures; the shop can still send the reward by hand. */
-	public const MAX_ATTEMPTS = 6;
-
-	private const COLUMNS = ['bill_id', 'code', 'link', 'qr_url', 'bill_status', 'claimed_on', 'error', 'attempts', 'emailed',
-		'credit_request', 'credit_request_id', 'credit_expires_on', 'credit_link', 'credit_qr', 'settled_request_id'];
-
 	public function gamma(): \GammaWallet {
 		return new \GammaWallet($this->registry);
+	}
+
+	/** The extension's texts: English first, then the store's language over it (OpenCart has no fallback). */
+	public function loadTexts(): void {
+		$this->load->language('extension/gamma_wallet/payment/gamma_wallet', '', 'en-gb');
+		$this->load->language('extension/gamma_wallet/payment/gamma_wallet');
+	}
+
+	private function order(int $orderId): array {
+		$this->load->model('checkout/order');
+
+		return $this->model_checkout_order->getOrder($orderId) ?: [];
 	}
 
 	// ---------------------------------------------------------------- the payment method
 
 	/** "Use Store Credits with Gamma", offered only when it can work for this cart. */
 	public function getMethods(array $address = []): array {
-		$this->load->language('extension/gamma_wallet/payment/gamma_wallet');
+		$this->loadTexts();
 		$gamma = $this->gamma();
 		$total = (float)$this->cart->getTotal();
 		$status = $this->config->get('payment_gamma_wallet_status')
@@ -47,165 +55,87 @@ class GammaWallet extends \Opencart\System\Engine\Model {
 	// ---------------------------------------------------------------- the per-order row
 
 	public function getRow(int $orderId): array {
-		$query = $this->db->query("SELECT * FROM `" . DB_PREFIX . "gamma_wallet_order` WHERE `order_id` = '" . $orderId . "'");
-
-		return array_merge(array_fill_keys(self::COLUMNS, null), $query->row ?: []);
-	}
-
-	public function saveRow(int $orderId, array $values): void {
-		$set = ["`date_modified` = NOW()"];
-		foreach ($values as $column => $value) {
-			if (in_array($column, self::COLUMNS, true)) {
-				$set[] = "`" . $column . "` = " . ($value === null ? 'NULL' : "'" . $this->db->escape((string)$value) . "'");
-			}
-		}
-		$this->db->query("INSERT INTO `" . DB_PREFIX . "gamma_wallet_order` SET `order_id` = '" . $orderId . "', " . implode(', ', $set)
-			. " ON DUPLICATE KEY UPDATE " . implode(', ', $set));
-	}
-
-	/** The order total in the order's own currency, as the customer paid it. */
-	public function orderTotal(array $orderInfo): float {
-		return (float)$this->currency->format((float)$orderInfo['total'], $orderInfo['currency_code'], (float)$orderInfo['currency_value'], false);
+		return $this->gamma()->row($orderId);
 	}
 
 	// ---------------------------------------------------------------- rewards
 
-	/** True when this order can ever earn a reward, now or once its payment is confirmed. */
 	public function mayEarn(array $orderInfo): bool {
-		$gamma = $this->gamma();
-
-		return $gamma->rewardsEnabled() && $gamma->rewardServiceActive() && $gamma->methodEarnsReward(\GammaWallet::methodCode($orderInfo));
+		return $this->gamma()->mayEarn($orderInfo);
 	}
 
-	/**
-	 * True when this order should have a reward QR code with this status: rewards are on, the business
-	 * has a Reward service, the payment method earns one, the currencies match, and the status means
-	 * the money is in. Orders settled with store credits never earn one.
-	 */
-	public function qualifies(array $orderInfo, int $statusId): bool {
-		return in_array($statusId, $this->gamma()->paidStatuses(), true)
-			&& $this->orderTotal($orderInfo) > 0
-			&& $this->mayEarn($orderInfo)
-			&& $this->gamma()->currencyMatches((string)$orderInfo['currency_code']);
-	}
+	/** Declares the order to Gamma once (see \GammaWallet::ensureBill). */
+	public function ensureBill(int $orderId, ?int $statusId = null, int $timeout = 20): bool {
+		$orderInfo = $this->order($orderId);
+		$this->loadTexts();
 
-	/**
-	 * Declares the order to Gamma once. Returns true when the order has a bill afterwards. Safe to call
-	 * any number of times: Gamma returns the same bill for the same reference.
-	 * $statusId: the status the order is entering (the order row may not have it yet).
-	 */
-	public function ensureBill(int $orderId, ?int $statusId = null): bool {
-		$row = $this->getRow($orderId);
-		if ($row['bill_id']) {
-			return true;
-		}
-		$this->load->model('checkout/order');
-		$orderInfo = $this->model_checkout_order->getOrder($orderId);
-		if (!$orderInfo || !$this->qualifies($orderInfo, $statusId ?? (int)$orderInfo['order_status_id']) || (int)$row['attempts'] >= self::MAX_ATTEMPTS) {
-			return false;
-		}
-		$api = $this->gamma()->api();
-		if (!$api) {
-			return false;
-		}
-		try {
-			$bill = $api->createBill([
-				'reference'     => $this->gamma()->reference($orderId),
-				'total'         => round($this->orderTotal($orderInfo), 2),
-				'currencyCode'  => $orderInfo['currency_code'],
-				'issuedOn'      => date(DATE_ATOM, strtotime($orderInfo['date_added'])),
-				'platform'      => 'opencart',
-				'pluginVersion' => \GammaWalletApi::VERSION,
-			]);
-		} catch (\GammaWalletApiError $e) {
-			$this->saveRow($orderId, ['error' => substr(\GammaWallet::explain($e), 0, 250), 'attempts' => (int)$row['attempts'] + 1]);
-			$this->log->write('Gamma Wallet: bill for order ' . $orderId . ' failed: ' . $e->getMessage());
-
-			return false;
-		}
-		$this->saveRow($orderId, [
-			'bill_id' => $bill['billId'], 'code' => $bill['code'], 'link' => $bill['link'], 'qr_url' => $bill['qrImageUrl'],
-			'bill_status' => $bill['status'], 'claimed_on' => $bill['claimedOn'] ?? null, 'error' => null,
-		]);
-
-		return true;
+		return $orderInfo && $this->gamma()->ensureBill($orderInfo, $statusId, $timeout, $this->language);
 	}
 
 	/** Asks Gamma whether the reward was collected. "Waiting" or "Claimed". */
-	public function refreshStatus(int $orderId): string {
-		$row = $this->getRow($orderId);
-		$api = $this->gamma()->api();
+	public function refreshStatus(int $orderId, int $timeout = 20): string {
+		$gamma = $this->gamma();
+		$row = $gamma->row($orderId);
+		$api = $gamma->api();
 		if ($row['bill_status'] === 'Claimed' || !$row['bill_id'] || !$api) {
 			return (string)$row['bill_status'];
 		}
 		try {
-			$bill = $api->getBill($row['bill_id']);
+			$bill = $api->getBill($row['bill_id'], $timeout);
 		} catch (\GammaWalletApiError $e) {
 			return (string)$row['bill_status'];
 		}
 		if ($bill['status'] !== $row['bill_status']) {
-			$this->saveRow($orderId, ['bill_status' => $bill['status'], 'claimed_on' => $bill['claimedOn'] ?? null]);
+			$gamma->saveRow($orderId, ['bill_status' => $bill['status'], 'claimed_on' => $bill['claimedOn'] ?? null]);
 		}
 
 		return (string)$bill['status'];
 	}
 
-	/** The reward email of its own: for paid-later orders, and for sending the QR code again by hand. */
+	/** The reward email of its own: for orders paid after the order email, and for sending it again. */
 	public function sendRewardEmail(int $orderId): bool {
-		if (!$this->ensureBill($orderId) || !$this->config->get('config_mail_engine')) {
+		$orderInfo = $this->order($orderId);
+		if (!$orderInfo) {
 			return false;
 		}
-		$this->load->model('checkout/order');
-		$orderInfo = $this->model_checkout_order->getOrder($orderId);
-		$row = $this->getRow($orderId);
-		$this->load->language('extension/gamma_wallet/payment/gamma_wallet');
-		$storeName = html_entity_decode((string)$orderInfo['store_name'], ENT_QUOTES, 'UTF-8');
-		$data = [
-			'store_name' => $storeName,
-			'firstname'  => $orderInfo['firstname'],
-			'order_id'   => $orderId,
-			'qr'         => $row['qr_url'],
-			'link'       => $row['link'],
-			'text_mail_title' => $this->language->get('text_mail_title'),
-			'text_mail_hello' => sprintf($this->language->get('text_mail_hello'), $orderInfo['firstname']),
-			'text_mail_body'  => sprintf($this->language->get('text_mail_body'), $orderId),
-			'text_open'       => $this->language->get('text_open'),
-		];
-		$mail = new \Opencart\System\Library\Mail($this->config->get('config_mail_engine'), [
-			'parameter'     => $this->config->get('config_mail_parameter'),
-			'smtp_hostname' => $this->config->get('config_mail_smtp_hostname'),
-			'smtp_username' => $this->config->get('config_mail_smtp_username'),
-			'smtp_password' => html_entity_decode((string)$this->config->get('config_mail_smtp_password'), ENT_QUOTES, 'UTF-8'),
-			'smtp_port'     => $this->config->get('config_mail_smtp_port'),
-			'smtp_timeout'  => $this->config->get('config_mail_smtp_timeout'),
-		]);
-		$mail->setTo($orderInfo['email']);
-		$mail->setFrom($this->config->get('config_email'));
-		$mail->setSender($storeName);
-		$mail->setSubject(sprintf($this->language->get('text_mail_subject'), $storeName, $orderId));
-		$mail->setHtml($this->load->view('extension/gamma_wallet/payment/gamma_wallet_mail', $data));
-		$mail->send();
-		$this->saveRow($orderId, ['emailed' => time()]);
+		$this->loadTexts();
+		$texts = [];
+		foreach (['text_mail_subject', 'text_mail_title', 'text_mail_hello', 'text_mail_body', 'text_open', 'text_qr_alt'] as $key) {
+			$texts[$key] = $this->language->get($key);
+		}
 
-		return true;
+		return $this->gamma()->sendRewardEmail($orderInfo, $texts, $this->language);
 	}
 
 	// ---------------------------------------------------------------- store credits
 
-	/** Asks Gamma for a new store-credit request for the whole order, and keeps it. */
-	public function startRequest(int $orderId): array {
-		$api = $this->gamma()->api();
+	/**
+	 * Asks Gamma for a new store-credit request for the whole order, and keeps it. Returns null when
+	 * another request is starting one or the current one is still live (never two codes per order).
+	 * $firstOnly: only if the order never had a code (the checkout's confirm step).
+	 */
+	public function startRequest(int $orderId, bool $firstOnly = false): ?array {
+		$gamma = $this->gamma();
+		$api = $gamma->api();
 		if (!$api) {
 			throw new \GammaWalletApiError(401, '0392', 'IntegrationTokenMissing');
 		}
-		$this->load->model('checkout/order');
-		$orderInfo = $this->model_checkout_order->getOrder($orderId);
-		$request = $api->startCredit([
-			'reference'    => $this->gamma()->reference($orderId),
-			'total'        => round($this->orderTotal($orderInfo), 2),
-			'currencyCode' => $orderInfo['currency_code'],
-		]);
-		$this->saveRow($orderId, [
+		$orderInfo = $this->order($orderId);
+		$previous = $gamma->claimCodeSlot($orderId, $firstOnly);
+		if ($previous === null) {
+			return null;
+		}
+		try {
+			$request = $api->startCredit([
+				'reference'    => $gamma->reference($orderId),
+				'total'        => round($gamma->orderTotal($orderInfo), 2),
+				'currencyCode' => $orderInfo['currency_code'],
+			]);
+		} catch (\GammaWalletApiError $e) {
+			$gamma->releaseCodeSlot($orderId, $previous);
+			throw $e;
+		}
+		$gamma->saveRow($orderId, [
 			'credit_request' => $request['creditRequest'], 'credit_request_id' => $request['requestId'],
 			'credit_expires_on' => $request['expiresOn'], 'credit_link' => $request['link'], 'credit_qr' => $request['qrPngBase64'] ?? '',
 		]);
@@ -214,20 +144,21 @@ class GammaWallet extends \Opencart\System\Engine\Model {
 	}
 
 	public function isSettled(int $orderId): bool {
-		return (bool)$this->getRow($orderId)['settled_request_id'];
+		return (bool)$this->gamma()->row($orderId)['settled_request_id'];
 	}
 
 	/** Paid (settled now or before), Waiting with the seconds left, or Expired. */
-	public function creditStatus(int $orderId): array {
+	public function creditStatus(int $orderId, int $timeout = 20): array {
 		if ($this->isSettled($orderId)) {
 			return ['status' => 'Paid'];
 		}
-		$row = $this->getRow($orderId);
-		$api = $this->gamma()->api();
+		$gamma = $this->gamma();
+		$row = $gamma->row($orderId);
+		$api = $gamma->api();
 		if (!$row['credit_request'] || !$api) {
 			return ['status' => 'Expired'];
 		}
-		$checked = $api->checkCredit($row['credit_request']);
+		$checked = $api->checkCredit($row['credit_request'], $timeout);
 		if ($checked['status'] === 'Paid') {
 			$this->markSettled($orderId, $checked);
 
@@ -237,16 +168,68 @@ class GammaWallet extends \Opencart\System\Engine\Model {
 		return ['status' => $checked['status'], 'secondsLeft' => (int)$checked['secondsLeft']];
 	}
 
-	/** Records a settled request once: the order moves to the "settled" status and the QR code goes. */
+	/** Gamma's answer is about this order: same reference, total and currency. */
+	private function matches(array $orderInfo, array $checked): bool {
+		$gamma = $this->gamma();
+		if (isset($checked['reference']) && (string)$checked['reference'] !== $gamma->reference((int)$orderInfo['order_id'])) {
+			return false;
+		}
+		if (isset($checked['currencyCode']) && strcasecmp((string)$checked['currencyCode'], (string)$orderInfo['currency_code']) !== 0) {
+			return false;
+		}
+
+		return !isset($checked['total']) || abs((float)$checked['total'] - round($gamma->orderTotal($orderInfo), 2)) < 0.005;
+	}
+
+	/**
+	 * Records a settled request once: the order moves to the "settled" status and the QR code goes. When
+	 * the order no longer waits for the credits (cancelled meanwhile, or changed by hand), its status is
+	 * left as it is and a note in its history tells the shop: the customer has used their credits.
+	 */
 	public function markSettled(int $orderId, array $checked): void {
-		if ($this->isSettled($orderId)) {
+		$orderInfo = $this->order($orderId);
+		if (!$orderInfo) {
 			return;
 		}
-		$requestId = (string)($checked['requestId'] ?? '');
-		$this->saveRow($orderId, ['credit_qr' => '', 'settled_request_id' => $requestId ?: 'settled']);
-		$this->load->language('extension/gamma_wallet/payment/gamma_wallet');
+		if (!$this->matches($orderInfo, $checked)) {
+			$this->log->write('Gamma Wallet: the settled request ' . ($checked['requestId'] ?? '?') . ' does not match order ' . $orderId
+				. ' (reference, total or currency); the order was not changed.');
+
+			return;
+		}
+		$requestId = (string)($checked['requestId'] ?? '') ?: 'settled';
+		$gamma = $this->gamma();
+		if (!$gamma->claimSettlement($orderId, $requestId)) {
+			return;
+		}
+		$this->loadTexts();
 		$this->load->model('checkout/order');
+		if ((int)$orderInfo['order_status_id'] !== $gamma->awaitingStatus()) {
+			$note = sprintf($this->language->get('text_settled_too_late'), $requestId);
+			$this->log->write('Gamma Wallet: order ' . $orderId . ': ' . $note);
+			$this->model_checkout_order->addHistory($orderId, (int)$orderInfo['order_status_id'], $note, false);
+
+			return;
+		}
 		$this->model_checkout_order->addHistory($orderId, (int)($this->config->get('payment_gamma_wallet_settled_status_id') ?: 2),
 			sprintf($this->language->get('text_settled_comment'), $requestId), true);
+	}
+
+	/**
+	 * Store-credit orders whose customer may have confirmed in the app after leaving the page. Credit/
+	 * Check answers for a request long after its code expired, so a settled order is found even then.
+	 */
+	public function reconcile(int $timeout = 5): void {
+		foreach ($this->gamma()->awaitingSettlement() as $orderId) {
+			$orderInfo = $this->order($orderId);
+			if (!$orderInfo || \GammaWallet::methodCode($orderInfo) !== 'gamma_wallet') {
+				continue;
+			}
+			try {
+				$this->creditStatus($orderId, $timeout);
+			} catch (\GammaWalletApiError $e) {
+				$this->log->write('Gamma Wallet: checking the store credits of order ' . $orderId . ' failed: ' . $e->getMessage());
+			}
+		}
 	}
 }
