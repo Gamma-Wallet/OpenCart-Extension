@@ -128,6 +128,16 @@ class GammaWallet extends \Opencart\System\Engine\Controller {
 			return;
 		}
 		$orderId = (int)$order['order_id'];
+		// A code that is still valid needs no call to Gamma: the order page keeps asking about it.
+		// Never two live codes for one order, or the customer could settle it twice. Gamma still accepts
+		// a code a few seconds past its time (clock differences), so wait those out too.
+		$row = $this->model()->getRow($orderId);
+		$expires = !empty($row['credit_expires_on']) ? strtotime($row['credit_expires_on']) : 0;
+		if ($expires && time() < $expires + 15) {
+			$this->reply(['error' => 'still_valid'], 409);
+
+			return;
+		}
 		try {
 			$current = $this->model()->creditStatus($orderId);
 		} catch (\GammaWalletApiError $e) {
@@ -142,15 +152,6 @@ class GammaWallet extends \Opencart\System\Engine\Controller {
 		}
 		if ((int)$order['order_status_id'] !== $this->model()->gamma()->awaitingStatus()) {
 			$this->reply(['error' => 'not_payable'], 409);
-
-			return;
-		}
-		// Never two live codes for one order, or the customer could settle it twice. Gamma still accepts
-		// a code a few seconds past its time (clock differences), so wait those out too.
-		$row = $this->model()->getRow($orderId);
-		$expires = $row['credit_expires_on'] ? strtotime($row['credit_expires_on']) : 0;
-		if ($expires && time() < $expires + 15) {
-			$this->reply(['error' => 'still_valid'], 409);
 
 			return;
 		}
@@ -179,10 +180,11 @@ class GammaWallet extends \Opencart\System\Engine\Controller {
 	/** Checks the waiting store-credit orders with Gamma, at most every RECONCILE_EVERY seconds. */
 	private function reconcileIfDue(int $timeout): void {
 		$gamma = $this->model()->gamma();
-		if ($gamma->token() === '' || (int)$gamma->data('reconciled_at') > time() - self::RECONCILE_EVERY) {
+		// Checking the stored time and then writing it let every page view arriving together run the
+		// check; claimRun lets exactly one of them through.
+		if ($gamma->token() === '' || !$gamma->claimRun('reconciled_at', self::RECONCILE_EVERY)) {
 			return;
 		}
-		$gamma->setData('reconciled_at', (string)time());
 		$this->model()->reconcile($timeout);
 	}
 

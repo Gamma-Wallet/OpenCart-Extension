@@ -34,7 +34,7 @@ class GammaWalletApiError extends \Exception {
 class GammaWalletApi {
 	/** Can be overridden for testing: define('GAMMA_WALLET_API_URL', 'https://…'); in config.php. */
 	public const DEFAULT_URL = 'https://integration.gamma-wallet.com';
-	public const VERSION = '1.1.0';
+	public const VERSION = '1.1.1';
 
 	public function __construct(private string $token) {}
 
@@ -130,6 +130,8 @@ class GammaWallet {
 	public const MAX_ATTEMPTS = 6;
 	/** How long after a code was shown the shop keeps asking Gamma whether it was settled. */
 	public const RECONCILE_HOURS = 6;
+	/** Waiting orders checked with Gamma per run. */
+	public const RECONCILE_BATCH = 20;
 
 	private const COLUMNS = ['bill_id', 'code', 'link', 'qr_url', 'bill_status', 'claimed_on', 'error', 'attempts', 'emailed',
 		'credit_request', 'credit_request_id', 'credit_expires_on', 'credit_link', 'credit_qr', 'settled_request_id'];
@@ -405,10 +407,38 @@ class GammaWallet {
 
 	/** Store-credit orders not settled yet whose code was shown in the last hours. */
 	public function awaitingSettlement(): array {
-		$query = $this->db()->query("SELECT `order_id` FROM `" . DB_PREFIX . "gamma_wallet_order` WHERE `settled_request_id` IS NULL"
-			. " AND `credit_request` IS NOT NULL AND `date_modified` > DATE_SUB(NOW(), INTERVAL " . self::RECONCILE_HOURS . " HOUR)");
+		// Only orders still waiting for store credits, and a bounded batch per run (oldest first):
+		// anyone can place store-credit orders, and each one checked here is a call to Gamma made
+		// during a customer's page view.
+		$query = $this->db()->query("SELECT g.`order_id` FROM `" . DB_PREFIX . "gamma_wallet_order` g"
+			. " JOIN `" . DB_PREFIX . "order` o ON o.`order_id` = g.`order_id`"
+			. " WHERE g.`settled_request_id` IS NULL AND g.`credit_request` IS NOT NULL"
+			. " AND g.`date_modified` > DATE_SUB(NOW(), INTERVAL " . self::RECONCILE_HOURS . " HOUR)"
+			. " AND o.`order_status_id` = '" . (int)$this->awaitingStatus() . "'"
+			. " ORDER BY g.`date_modified` ASC LIMIT " . self::RECONCILE_BATCH);
 
 		return array_map('intval', array_column($query->rows, 'order_id'));
+	}
+
+	/**
+	 * Takes the slot of a task that runs at most every $every seconds, in one conditional UPDATE: of
+	 * page views arriving together, exactly one gets true.
+	 */
+	public function claimRun(string $key, int $every): bool {
+		$db = $this->db();
+		$full = self::DATA_CODE . '_' . $key;
+		if ($this->data($key) === null) {
+			$this->setData($key, '0');
+		}
+		$now = time();
+		$db->query("UPDATE `" . DB_PREFIX . "setting` SET `value` = '" . $now . "' WHERE `store_id` = '0' AND `code` = '" . self::DATA_CODE . "'"
+			. " AND `key` = '" . $db->escape($full) . "' AND CAST(`value` AS UNSIGNED) <= " . ($now - $every));
+		if ($db->countAffected() !== 1) {
+			return false;
+		}
+		$this->config()->set($full, (string)$now);
+
+		return true;
 	}
 
 	// ---------------------------------------------------------------- rewards (shared by the shop and the admin)

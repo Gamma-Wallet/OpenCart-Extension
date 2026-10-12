@@ -52,4 +52,6 @@ OpenCart 4.1.0.4 (PHP 8.2, MariaDB 11, default theme) in Docker, against the liv
 
 1.1.0 (security review fixes), also on 4.1.0.4 against the live Integration API: reinstall through the admin (secret kept, install date reset, 8 events, cron job); card order → bill `OC-<tag>-<id>`; a card order confirmed later → reward email; old orders, a repeated checkout post and a second code while one is live refused; wrong total refused, settlement recorded once; paid after cancel → status kept, history note; status route cached; event routes by URL do nothing; admin settings, order box and "send again" directly from the admin; the customer's order-page box rendered with escaped values.
 
+1.1.1: the check of waiting store-credit orders that runs during page views is taken by one page view at a time (a conditional update) and checks at most 20 orders still waiting for store credits per run; a new code is refused while the current one is valid before Gamma is asked. Checked with PHP 8.3 lint; not yet run in the Docker shop.
+
 Not tested yet: an anti-fraud extension end to end, OpenCart 4.0.x, other themes, multi-store.
